@@ -117,6 +117,8 @@ func (w *worker) start(filesChan <-chan string, wg *sync.WaitGroup) {
 			continue
 		}
 
+		log.Println("copied", file)
+
 		if w.keep {
 			continue
 		}
@@ -128,7 +130,7 @@ func (w *worker) start(filesChan <-chan string, wg *sync.WaitGroup) {
 			continue
 		}
 
-		log.Println("moved file", file)
+		log.Println("removed file", file)
 	}
 }
 
