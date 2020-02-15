@@ -19,6 +19,8 @@ func main() {
 	dstBucket := flag.String("dst-bucket", "", "target s3 bucket name")
 	dstPrefix := flag.String("dst-prefix", "", "new files will be prefixed with this value")
 
+	keepOriginal := flag.Bool("keep", false, "set to keep original files (remove by default)")
+
 	flag.Parse()
 
 	src, err := newClient(*srcRegion, *srcBucket, *srcPrefix)
@@ -34,7 +36,7 @@ func main() {
 	files, errors := src.listFiles()
 
 	wg := &sync.WaitGroup{}
-	w := &worker{src, dst}
+	w := &worker{src, dst, *keepOriginal}
 
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
@@ -56,6 +58,8 @@ func main() {
 type worker struct {
 	src *client
 	dst *client
+
+	keep bool
 }
 
 func (w *worker) start(filesChan <-chan string, wg *sync.WaitGroup) {
@@ -65,6 +69,10 @@ func (w *worker) start(filesChan <-chan string, wg *sync.WaitGroup) {
 		err := copyCompressedFile(w.src, w.dst, file)
 		if err != nil {
 			log.Println("can't move compressed file", file, "error:", err)
+			continue
+		}
+
+		if w.keep {
 			continue
 		}
 
