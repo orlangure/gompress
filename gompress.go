@@ -11,24 +11,17 @@ import (
 )
 
 func main() {
-	srcRegion := flag.String("src-region", "us-east-1", "source region")
-	srcBucket := flag.String("src-bucket", "", "source s3 bucket name")
-	srcPrefix := flag.String("src-prefix", "", "source file prefix")
+	conf, err := newConfig()
+	if err != nil {
+		log.Fatalf("invalid configuration: %s", err)
+	}
 
-	dstRegion := flag.String("dst-region", "us-east-1", "target region")
-	dstBucket := flag.String("dst-bucket", "", "target s3 bucket name")
-	dstPrefix := flag.String("dst-prefix", "", "new files will be prefixed with this value")
-
-	keepOriginal := flag.Bool("keep", false, "set to keep original files (remove by default)")
-
-	flag.Parse()
-
-	src, err := newClient(*srcRegion, *srcBucket, *srcPrefix)
+	src, err := newClient(conf.srcRegion, conf.srcBucket, conf.srcPrefix)
 	if err != nil {
 		log.Fatalf("can't create source s3 client: %s", err)
 	}
 
-	dst, err := newClient(*dstRegion, *dstBucket, *dstPrefix)
+	dst, err := newClient(conf.dstRegion, conf.dstBucket, conf.dstPrefix)
 	if err != nil {
 		log.Fatalf("can't create destination s3 client: %s", err)
 	}
@@ -36,7 +29,7 @@ func main() {
 	files, errors := src.listFiles()
 
 	wg := &sync.WaitGroup{}
-	w := &worker{src, dst, *keepOriginal}
+	w := &worker{src, dst, conf.keepOriginal}
 
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
@@ -53,6 +46,58 @@ func main() {
 	}
 
 	log.Println("finished successfully")
+}
+
+type config struct {
+	srcRegion string
+	srcBucket string
+	srcPrefix string
+
+	dstRegion string
+	dstBucket string
+	dstPrefix string
+
+	keepOriginal bool
+}
+
+func newConfig() (*config, error) {
+	var srcRegion, srcBucket, srcPrefix string
+
+	flag.StringVar(&srcRegion, "src-region", "us-east-1", "source region")
+	flag.StringVar(&srcBucket, "src-bucket", "", "source s3 bucket name")
+	flag.StringVar(&srcPrefix, "src-prefix", "", "source file prefix")
+
+	var dstRegion, dstBucket, dstPrefix string
+
+	flag.StringVar(&dstRegion, "dst-region", "us-east-1", "target region")
+	flag.StringVar(&dstBucket, "dst-bucket", "", "target s3 bucket name")
+	flag.StringVar(&dstPrefix, "dst-prefix", "", "new files will be prefixed with this value")
+
+	keepOriginal := flag.Bool("keep", false, "set to keep original files (remove by default)")
+
+	flag.Parse()
+
+	if srcRegion == "" {
+		return nil, fmt.Errorf("invalid source region '%s'", srcRegion)
+	}
+
+	if srcBucket == "" {
+		return nil, fmt.Errorf("invalid source bucket '%s'", srcBucket)
+	}
+
+	if dstRegion == "" {
+		return nil, fmt.Errorf("invalid destination region '%s'", dstRegion)
+	}
+
+	if dstBucket == "" {
+		return nil, fmt.Errorf("invalid destination bucket '%s'", dstBucket)
+	}
+
+	return &config{
+		srcRegion, srcBucket, srcPrefix,
+		dstRegion, dstBucket, dstPrefix,
+		*keepOriginal,
+	}, nil
 }
 
 type worker struct {
