@@ -133,7 +133,7 @@ func (w *worker) start(filesChan <-chan string, wg *sync.WaitGroup) {
 }
 
 func copyCompressedFile(src, dst *client, file string) error {
-	srcReader, err := src.read(file)
+	srcReader, err := src.open(file)
 	if err != nil {
 		return fmt.Errorf("can't read source file %s: %w", file, err)
 	}

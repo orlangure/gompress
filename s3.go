@@ -74,7 +74,7 @@ func (c *client) listFiles() (<-chan string, <-chan error) {
 	return files, errors
 }
 
-func (c *client) read(file string) (io.ReadCloser, error) {
+func (c *client) open(file string) (io.ReadCloser, error) {
 	getObjInput := &s3.GetObjectInput{
 		Bucket: aws.String(c.bucket),
 		Key:    aws.String(file),
