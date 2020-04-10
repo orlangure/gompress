@@ -41,7 +41,7 @@ location. Otherwise, when `-keep` flag is not set, original files are removed
 once their compressed versions are successfully uploaded to the destination
 path.
 
-### Building from source (Go 1.13 is required):
+### Building from source (Go 1.13 or above is required):
 
 ```
 $ git clone https://github.com/orlangure/gompress
