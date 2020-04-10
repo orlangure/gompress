@@ -36,6 +36,11 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
+	err := os.MkdirAll("./testdata/output-bucket", 0755)
+	if err != nil {
+		panic(err)
+	}
+
 	p := localstack.Preset(
 		localstack.WithServices(localstack.S3),
 		localstack.WithS3Files("./testdata"),
