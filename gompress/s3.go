@@ -1,4 +1,4 @@
-package main
+package gompress
 
 import (
 	"fmt"
@@ -12,13 +12,28 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-func newClient(region, bucket, prefix string) (*client, error) {
-	sess, err := session.NewSession(&aws.Config{Region: aws.String(region)})
+func newSrcClient(conf *Config) (*client, error) {
+	return newClient(conf.Src, conf.Endpoint)
+}
+
+func newDstClient(conf *Config) (*client, error) {
+	return newClient(conf.Dst, conf.Endpoint)
+}
+
+func newClient(loc *S3Locaction, endpoint string) (*client, error) {
+	config := &aws.Config{Region: aws.String(loc.Region)}
+
+	if endpoint != "" {
+		config.Endpoint = aws.String(endpoint)
+		config.S3ForcePathStyle = aws.Bool(true)
+	}
+
+	sess, err := session.NewSession(config)
 	if err != nil {
 		return nil, fmt.Errorf("can't create session: %w", err)
 	}
 
-	return &client{sess, s3.New(sess), bucket, prefix}, nil
+	return &client{sess, s3.New(sess), loc.Bucket, loc.Prefix}, nil
 }
 
 type client struct {

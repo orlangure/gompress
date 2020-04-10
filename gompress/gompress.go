@@ -1,35 +1,30 @@
-package main
+// Package gompress exposes a function to compress the contents of an S3 bucket
+package gompress
 
 import (
 	"compress/gzip"
-	"flag"
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"sync"
 )
 
-func main() {
-	conf, err := newConfig()
+// Run starts gompress with the provided configuration
+func Run(conf *Config) error {
+	src, err := newSrcClient(conf)
 	if err != nil {
-		log.Fatalf("invalid configuration: %s", err)
+		return fmt.Errorf("can't create source s3 client: %w", err)
 	}
 
-	src, err := newClient(conf.srcRegion, conf.srcBucket, conf.srcPrefix)
+	dst, err := newDstClient(conf)
 	if err != nil {
-		log.Fatalf("can't create source s3 client: %s", err)
-	}
-
-	dst, err := newClient(conf.dstRegion, conf.dstBucket, conf.dstPrefix)
-	if err != nil {
-		log.Fatalf("can't create destination s3 client: %s", err)
+		return fmt.Errorf("can't create destination s3 client: %w", err)
 	}
 
 	files, errors := src.listFiles()
 
 	wg := &sync.WaitGroup{}
-	w := &worker{src, dst, conf.keepOriginal}
+	w := &worker{src, dst, conf.KeepOriginal}
 
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
@@ -41,63 +36,38 @@ func main() {
 
 	err = <-errors
 	if err != nil {
-		log.Println("finished with error:", err)
-		os.Exit(1)
+		return fmt.Errorf("finished with error: %w", err)
 	}
 
-	log.Println("finished successfully")
+	return nil
 }
 
-type config struct {
-	srcRegion string
-	srcBucket string
-	srcPrefix string
+// Config defines how gompress will process the files
+type Config struct {
+	// Src defines where to take the data from
+	Src *S3Locaction
 
-	dstRegion string
-	dstBucket string
-	dstPrefix string
+	// Dst defines where to put compressed data
+	Dst *S3Locaction
 
-	keepOriginal bool
+	// KeepOriginal is a flag that allows to keep or remove compressed files in
+	// Src location
+	KeepOriginal bool
+
+	// Endpoint is used for tests to override default s3 endpoint
+	Endpoint string
 }
 
-func newConfig() (*config, error) {
-	var srcRegion, srcBucket, srcPrefix string
+// S3Locaction defines a path in s3, including region, bucket and prefix
+type S3Locaction struct {
+	// Region is AWS region
+	Region string
 
-	flag.StringVar(&srcRegion, "src-region", "us-east-1", "source region")
-	flag.StringVar(&srcBucket, "src-bucket", "", "source s3 bucket name")
-	flag.StringVar(&srcPrefix, "src-prefix", "", "source file prefix")
+	// Bucket is a bucket in s3
+	Bucket string
 
-	var dstRegion, dstBucket, dstPrefix string
-
-	flag.StringVar(&dstRegion, "dst-region", "us-east-1", "target region")
-	flag.StringVar(&dstBucket, "dst-bucket", "", "target s3 bucket name")
-	flag.StringVar(&dstPrefix, "dst-prefix", "", "new files will be prefixed with this value")
-
-	keepOriginal := flag.Bool("keep", false, "set to keep original files (remove by default)")
-
-	flag.Parse()
-
-	if srcRegion == "" {
-		return nil, fmt.Errorf("invalid source region '%s'", srcRegion)
-	}
-
-	if srcBucket == "" {
-		return nil, fmt.Errorf("invalid source bucket '%s'", srcBucket)
-	}
-
-	if dstRegion == "" {
-		return nil, fmt.Errorf("invalid destination region '%s'", dstRegion)
-	}
-
-	if dstBucket == "" {
-		return nil, fmt.Errorf("invalid destination bucket '%s'", dstBucket)
-	}
-
-	return &config{
-		srcRegion, srcBucket, srcPrefix,
-		dstRegion, dstBucket, dstPrefix,
-		*keepOriginal,
-	}, nil
+	// Prefix is a path inside the bucket, or part of it
+	Prefix string
 }
 
 type worker struct {
