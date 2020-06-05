@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/orlangure/gnomock"
-	localstack "github.com/orlangure/gnomock-localstack"
+	"github.com/orlangure/gnomock/preset/localstack"
 	"github.com/orlangure/gompress/gompress"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +53,7 @@ func testMain(m *testing.M) int {
 		panic(err)
 	}
 
-	s3Endpoint = fmt.Sprintf("http://%s/", c.Address(localstack.S3Port))
+	s3Endpoint = fmt.Sprintf("http://%s/", c.Address(localstack.APIPort))
 	config := &aws.Config{
 		Region:           aws.String(region),
 		Endpoint:         aws.String(s3Endpoint),
